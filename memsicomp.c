@@ -11,7 +11,7 @@
  * Los procesos alternan su ejecución mediante espera activa sobre
  * la variable "turno" en memoria compartida:
  *   - Proceso padre: espera su turno, suma +1 al acumulador y cede el turno.
- *   - Proceso hijo:  espera su turno, suma +2 al acumulador y cede el turno.
+ *   - Proceso hijo:  espera su turno, suma +1 al acumulador y cede el turno.
  */
 
 #include <stdio.h>
@@ -51,12 +51,12 @@ int main(int argc, char **argv)
     pid_t pid = fork();
 
     if (pid == 0) {
-        // Proceso hijo: suma +2 en cada turno
+        // Proceso hijo: suma +1 en cada turno
         for (int i = 0; i < ITERACIONES; i++) {
             while (mem->turno != 1);
 
-            mem->suma += 2;
-            printf("Hijo  sumó 2 -> suma = %d  (iteración %d)  PID: %d\n", mem->suma, i, getpid());
+            mem->suma += 1;
+            printf("Hijo  sumó 1 -> suma = %d  (iteración %d)  PID: %d\n", mem->suma, i, getpid());
 
             mem->turno = 0;
         }
@@ -76,10 +76,10 @@ int main(int argc, char **argv)
 
         printf("\n=== Resultado Final ===\n");
         printf("Suma total en memoria compartida: %d\n", mem->suma);
-        printf("Esperado: %d (padre: %d x 1) + (hijo: %d x 2) = %d\n",
-               ITERACIONES * 1 + ITERACIONES * 2,
+        printf("Esperado: %d (padre: %d x 1) + (hijo: %d x 1) = %d\n",
+               ITERACIONES * 1 + ITERACIONES * 1,
                ITERACIONES, ITERACIONES,
-               ITERACIONES * 1 + ITERACIONES * 2);
+               ITERACIONES * 1 + ITERACIONES * 1);
     }
 
     munmap(mem, TAMANIOPAGINA);
