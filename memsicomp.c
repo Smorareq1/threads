@@ -1,3 +1,20 @@
+/*
+ * memsicomp.c - Memoria compartida con alternancia estricta
+ *
+ * Este programa demuestra el uso de memoria compartida entre hilos
+ * utilizando mmap() en lugar de variables globales. Se reserva una
+ * página de memoria con MAP_SHARED | MAP_ANONYMOUS donde se almacena
+ * una estructura con un acumulador (suma) y una variable de turno.
+ *
+ * Dos hilos se crean con pthreads y alternan su ejecución mediante
+ * espera activa (busy waiting) sobre la variable "turno":
+ *   - Hilo 0: espera su turno, suma +1 al acumulador y cede el turno.
+ *   - Hilo 1: espera su turno, suma +2 al acumulador y cede el turno.
+ *
+ * De esta forma se garantiza alternancia estricta y se demuestra
+ * cómo ambos hilos comparten y modifican la misma región de memoria.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -10,26 +27,21 @@
 #define TAMANIOPAGINA 4096
 #define ITERACIONES 5
 
-// Estructura para la memoria compartida entre hilos
 typedef struct {
-    int suma;           // Valor acumulado compartido
-    volatile int turno; // Control de alternancia: 0 = hilo 0, 1 = hilo 1
+    int suma;
+    volatile int turno;
 } MemoriaCompartida;
 
-// Puntero global a la memoria compartida (mapeada con mmap)
 MemoriaCompartida *mem;
 
 void *hilo0_func(void *arg) {
     for (int i = 0; i < ITERACIONES; i++) {
-        // Sección de entrada: espera activa hasta que sea su turno
         while (mem->turno != 0);
 
-        // Sección crítica: suma su valor
         mem->suma += 1;
         printf("Hilo 0 sumó 1 -> suma = %d  (iteración %d)\n", mem->suma, i);
         sleep(1);
 
-        // Sección de salida: cede el turno al hilo 1
         mem->turno = 1;
     }
     pthread_exit(NULL);
@@ -37,15 +49,12 @@ void *hilo0_func(void *arg) {
 
 void *hilo1_func(void *arg) {
     for (int i = 0; i < ITERACIONES; i++) {
-        // Sección de entrada: espera activa hasta que sea su turno
         while (mem->turno != 1);
 
-        // Sección crítica: suma su valor
         mem->suma += 2;
         printf("Hilo 1 sumó 2 -> suma = %d  (iteración %d)\n", mem->suma, i);
         sleep(1);
 
-        // Sección de salida: cede el turno al hilo 0
         mem->turno = 0;
     }
     pthread_exit(NULL);
@@ -53,7 +62,6 @@ void *hilo1_func(void *arg) {
 
 int main(int argc, char **argv)
 {
-    // Crear memoria compartida con mmap (NO una variable global)
     mem = mmap(NULL, TAMANIOPAGINA,
                PROT_READ | PROT_WRITE,
                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -63,9 +71,8 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    // Inicializar valores en la memoria compartida
     mem->suma = 0;
-    mem->turno = 0;  // Empieza el hilo 0
+    mem->turno = 0;
 
     printf("=== Memoria Compartida con Alternancia ===\n");
     printf("Valor inicial de suma: %d\n\n", mem->suma);
@@ -85,7 +92,6 @@ int main(int argc, char **argv)
            ITERACIONES, ITERACIONES,
            ITERACIONES * 1 + ITERACIONES * 2);
 
-    // Liberar la memoria compartida
     munmap(mem, TAMANIOPAGINA);
 
     return 0;
